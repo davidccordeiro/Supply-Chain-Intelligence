@@ -1,0 +1,52 @@
+# supply/dbt_project.yml
+
+name: supply
+version: "1.0.0"
+config-version: 2
+
+# This profile name must match an entry in profiles.yml
+profile: supply
+
+# Where dbt looks for different file types
+model-paths:      ["models"]
+test-paths:       ["tests"]
+seed-paths:       ["seeds"]
+macro-paths:      ["macros"]
+snapshot-paths:   ["snapshots"]
+
+target-path:      "target"
+clean-targets:    ["target", "dbt_packages"]
+
+# ── Model configuration by directory ──────────────────────────────────────────
+# The folder structure enforces the layering pattern:
+#   raw        → never touched by dbt (loaded by setup_db.py)
+#   staging    → 1:1 with raw tables, light cleaning only
+#   marts      → business-facing, joined, aggregated models
+#
+# Rule of thumb:
+#   staging = views   (no storage cost, always reflects raw)
+#   marts   = tables  (pre-computed for query performance)
+
+models:
+  supply:
+    staging:
+      +materialized: view
+      +schema: staging          # writes to supply_staging schema
+      +meta:
+        owner: supply_team
+        domain: supply
+
+    marts:
+      +materialized: table
+      +schema: mart             # writes to supply_mart schema
+      +meta:
+        owner: supply_team
+        domain: supply
+
+# ── Snapshots ─────────────────────────────────────────────────────────────────
+# SCD Type 2 for product catalogue — configured here, defined in snapshots/
+snapshots:
+  supply:
+    +target_schema: snapshots
+    +strategy: timestamp
+    +updated_at: effective_from

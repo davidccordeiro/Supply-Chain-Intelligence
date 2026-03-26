@@ -1,0 +1,215 @@
+# supply/models/sources.yml
+
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: >
+      Raw data landed from source systems via Airbyte (production)
+      or setup_db.py (local development). Never transformed here —
+      all logic lives in staging models.
+
+    # Freshness checks — warn if data is stale
+    # In production these run on a schedule via
+    freshness:
+      warn_after:  {count: 24,  period: hour}
+      error_after: {count: 48, period: hour}
+
+    tables:
+
+      # ── Stores ───────────────────────────────────────────────────────────────
+
+      - name: stores
+        description: >
+          Store master data. One row per physical store location.
+          Source system: Store MDM (Master Data Management).
+        loaded_at_field: opened_date
+        columns:
+          - name: store_id
+            description: Primary key. Format STR0001–STR0400.
+            tests:
+              - not_null
+              - unique
+          - name: store_cluster
+            description: >
+              Demand cluster used for forecasting. Drives Prophet
+              model segmentation in Group 7.
+            tests:
+              - not_null
+              - accepted_values:
+                  values:
+                    - metro_large
+                    - metro_small
+                    - suburban
+                    - regional
+                    - rural
+                    - convenience
+          - name: state
+            tests:
+              - not_null
+              - accepted_values:
+                  values: [NSW, VIC, QLD, WA, SA]
+          - name: is_active
+            tests:
+              - not_null
+
+      # ── Suppliers ─────────────────────────────────────────────────────────────
+
+      - name: suppliers
+        description: >
+          Supplier master data from EDI feed.
+          One row per supplier. lead_time_days drives reorder logic.
+        columns:
+          - name: supplier_id
+            description: Primary key. Format SUP001–SUP050.
+            tests:
+              - not_null
+              - unique
+          - name: lead_time_days
+            description: >
+              Days between purchase order and expected delivery.
+              Used in reorder point calculation in fct_inventory_snapshots.
+            tests:
+              - not_null
+          - name: payment_terms
+            tests:
+              - accepted_values:
+                  values: [NET30, NET60, NET14, COD]
+
+      # ── Products ──────────────────────────────────────────────────────────────
+
+      - name: products
+        description: >
+          Product catalogue from PIM (Product Information Management) system.
+          Current prices only — see product_price_history for full price timeline.
+          WARNING: Do not use unit_price for historical sales analysis.
+          Always join to product_price_history using the sale date.
+        columns:
+          - name: product_id
+            description: Primary key. Format PRD0001–PRD0500.
+            tests:
+              - not_null
+              - unique
+          - name: category
+            tests:
+              - not_null
+              - accepted_values:
+                  values:
+                    - fresh_produce
+                    - dairy
+                    - bakery
+                    - meat_seafood
+                    - pantry
+                    - frozen
+                    - beverages
+                    - health_beauty
+          - name: supplier_id
+            description: Foreign key to suppliers.supplier_id.
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'suppliers')
+                  field: supplier_id
+          - name: unit_price
+            tests:
+              - not_null
+          - name: cost_price
+            tests:
+              - not_null
+
+      # ── Product price history ─────────────────────────────────────────────────
+
+      - name: product_price_history
+        description: >
+          Full price change history for every product.
+          This table is the source for SCD Type 2 in dim_products.
+          effective_to = NULL means the record is currently active.
+          Never delete rows from this table — append only.
+        columns:
+          - name: product_id
+            description: Foreign key to products.product_id.
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'products')
+                  field: product_id
+          - name: effective_from
+            description: Date this price came into effect. Never null.
+            tests:
+              - not_null
+          - name: unit_price
+            tests:
+              - not_null
+
+      # ── Inventory snapshots ───────────────────────────────────────────────────
+
+      - name: inventory_snapshots
+        description: >
+          Weekly stock-on-hand per store per product.
+          Source system: Warehouse Management System (WMS).
+          quantity_on_hand = 0 indicates a stockout event.
+          Grain: one row per store_id + product_id + snapshot_date.
+        loaded_at_field: snapshot_date
+        columns:
+          - name: store_id
+            description: Foreign key to stores.store_id.
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'stores')
+                  field: store_id
+          - name: product_id
+            description: Foreign key to products.product_id.
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'products')
+                  field: product_id
+          - name: snapshot_date
+            tests:
+              - not_null
+          - name: quantity_on_hand
+            description: >
+              Units on hand at time of snapshot.
+              Values below reorder_point should trigger a purchase order.
+            tests:
+              - not_null
+
+      # ── Purchase orders ───────────────────────────────────────────────────────
+
+      - name: purchase_orders
+        description: >
+          Supplier replenishment orders from ERP system.
+          Grain: one row per purchase order line (one product per PO).
+        columns:
+          - name: po_id
+            description: Primary key. Format PO000001.
+            tests:
+              - not_null
+              - unique
+          - name: store_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'stores')
+                  field: store_id
+          - name: product_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'products')
+                  field: product_id
+          - name: supplier_id
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'suppliers')
+                  field: supplier_id
+          - name: status
+            tests:
+              - accepted_values:
+                  values: [delivered, in_transit, pending, cancelled]
+          - name: quantity_ordered
+            tests:
+              - not_null

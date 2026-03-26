@@ -1,0 +1,49 @@
+name: demand
+version: "1.0.0"
+config-version: 2
+
+profile: demand
+
+model-paths:      ["models"]
+test-paths:       ["tests"]
+seed-paths:       ["seeds"]
+macro-paths:      ["macros"]
+snapshot-paths:   ["snapshots"]
+
+target-path:      "target"
+clean-targets:    ["target", "dbt_packages"]
+
+# ── Runtime variables ──────────────────────────────────────────────────────────
+# Override at runtime: dbt run --vars '{"start_date": "2023-06-01"}'
+vars:
+  start_date: "2023-01-01"      # Prophet forecast window start
+  forecast_horizon_weeks: 12    # how many weeks ahead to forecast
+
+# ── Model configuration ────────────────────────────────────────────────────────
+models:
+  demand:
+    staging:
+      +materialized: view
+      +schema: staging           # → demand_staging schema
+      +meta:
+        owner: demand_team
+        domain: demand
+
+    marts:
+      +materialized: table
+      +schema: mart              # → demand_mart schema
+      +meta:
+        owner: demand_team
+        domain: demand
+
+    # ── Cross-domain models ──────────────────────────────────────────────────
+    # Models that reference supply domain public contracts live here.
+    # Materialised as tables because they join across domain boundaries —
+    # we don't want that join re-executing on every query.
+    cross_domain:
+      +materialized: table
+      +schema: mart
+      +meta:
+        owner: demand_team
+        domain: demand
+        depends_on_domain: supply
