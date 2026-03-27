@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supply Chain Intelligence — Forecast Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #f5f4f0;
+    --surface: #ffffff;
+    --border:  rgba(0,0,0,0.08);
+    --text:    #2c2c2a;
+    --muted:   #73726c;
+    --radius:  12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:      #1a1a18;
+      --surface: #232321;
+      --border:  rgba(255,255,255,0.08);
+      --text:    #e8e6de;
+      --muted:   #888780;
+    }
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 20px 48px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .metric {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .metric-value {
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1;
+  }
+  .metric-value.warn  { color: #EF9F27; }
+  .metric-value.bad   { color: #E24B4A; }
+  .metric-value.good  { color: #639922; }
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 20px 16px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .card-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    margin-bottom: 12px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .swatch {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 700px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  .cat-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+  .cat-tab {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .cat-tab.active {
+    color: var(--text);
+    border-color: currentColor;
+    font-weight: 500;
+  }
+  .mape-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .mape-legend span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .band {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<h1>🛒 Retail Supply Chain Intelligence</h1>
+<p class="subtitle">Demand Forecast Dashboard &nbsp;·&nbsp; 12-week forward view &nbsp;·&nbsp; Generated 27 Mar 2026 17:10</p>
+
+<!-- Summary metrics -->
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">Models trained</div>
+    <div class="metric-value">8</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Best MAPE</div>
+    <div class="metric-value good">20.3%</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Worst MAPE</div>
+    <div class="metric-value bad">127.3%</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Active stockouts</div>
+    <div class="metric-value bad">9,323</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Critical stock</div>
+    <div class="metric-value warn">2,288</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Reorders needed</div>
+    <div class="metric-value warn">11,611</div>
+  </div>
+</div>
+
+<!-- Chart 1: Forecast vs actuals per category -->
+<div class="card">
+  <h2>Demand forecast vs historical sales</h2>
+  <p class="card-desc">Solid line = historical weekly units sold. Dashed line = Prophet forecast. Shaded band = 80% confidence interval. Vertical line marks forecast start.</p>
+  <div class="cat-tabs" id="cat-tabs"></div>
+  <div class="chart-wrap" style="height:300px">
+    <canvas id="forecastChart"></canvas>
+  </div>
+</div>
+
+<!-- Chart 2 + 3: side by side -->
+<div class="grid-2">
+
+  <div class="card">
+    <h2>Forecast accuracy by category (MAPE)</h2>
+    <p class="card-desc">Lower is better. Grocery benchmark: &lt;25% excellent, &lt;60% acceptable, &gt;100% unreliable.</p>
+    <div class="mape-legend">
+      <span><span class="band" style="background:#639922"></span>Excellent &lt;25%</span>
+      <span><span class="band" style="background:#378ADD"></span>Acceptable &lt;60%</span>
+      <span><span class="band" style="background:#EF9F27"></span>Poor &lt;100%</span>
+      <span><span class="band" style="background:#E24B4A"></span>Unreliable &gt;100%</span>
+    </div>
+    <div class="chart-wrap" style="height:280px">
+      <canvas id="mapeChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Reorder urgency by category</h2>
+    <p class="card-desc">Store/product combinations requiring a purchase order, grouped by urgency level.</p>
+    <div class="legend" id="reorder-legend"></div>
+    <div class="chart-wrap" style="height:280px">
+      <canvas id="reorderChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- Chart 4: Seasonal heatmap (simulated with bar chart) -->
+<div class="card">
+  <h2>Seasonal demand patterns</h2>
+  <p class="card-desc">Average daily units sold per category by month. Reveals summer/winter peaks and promotional seasonality.</p>
+  <div class="legend" id="seasonal-legend"></div>
+  <div class="chart-wrap" style="height:320px">
+    <canvas id="seasonalChart"></canvas>
+  </div>
+</div>
+
+<script>
+const FC_DATA       = {"labels": ["2022-12-26", "2023-01-02", "2023-01-09", "2023-01-16", "2023-01-23", "2023-01-30", "2023-02-06", "2023-02-13", "2023-02-20", "2023-02-27", "2023-03-06", "2023-03-13", "2023-03-20", "2023-03-27", "2023-04-03", "2023-04-10", "2023-04-17", "2023-04-24", "2023-05-01", "2023-05-08", "2023-05-15", "2023-05-22", "2023-05-29", "2023-06-05", "2023-06-12", "2023-06-19", "2023-06-26", "2023-07-03", "2023-07-10", "2023-07-17", "2023-07-24", "2023-07-31", "2023-08-07", "2023-08-14", "2023-08-21", "2023-08-28", "2023-09-04", "2023-09-11", "2023-09-18", "2023-09-25", "2023-10-02", "2023-10-09", "2023-10-16", "2023-10-23", "2023-10-30", "2023-11-06", "2023-11-13", "2023-11-20", "2023-11-27", "2023-12-04", "2023-12-11", "2023-12-18", "2023-12-25", "2023-12-31", "2024-01-07", "2024-01-14", "2024-01-21", "2024-01-28", "2024-02-04", "2024-02-11", "2024-02-18", "2024-02-25", "2024-03-03", "2024-03-10", "2024-03-17"], "last_hist": "2023-12-25", "datasets": [{"category": "fresh_produce", "colour": "#1D9E75", "hist": [2720, 15506, 15019, 15379, 15478, 15116, 15242, 16012, 15163, 16114, 15272, 15243, 15847, 15294, 15201, 14926, 15444, 15295, 17422, 17914, 17565, 17971, 17339, 16850, 17294, 17863, 19242, 20453, 20259, 19304, 20508, 20134, 19619, 20003, 20062, 18898, 17294, 17340, 17976, 16849, 16019, 15907, 16003, 15357, 15212, 14803, 15118, 14912, 16859, 17866, 17637, 17521, 17354, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 16390, 16150, 16448, 16558, 16705, 16396, 16634, 17064, 16905, 16715, 16552, 16814], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 15983, 15772, 16032, 16178, 16339, 16002, 16229, 16671, 16486, 16308, 16148, 16407], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 16798, 16536, 16823, 16962, 17091, 16777, 17019, 17450, 17309, 17107, 16961, 17216]}, {"category": "dairy", "colour": "#378ADD", "hist": [6737, 33718, 34946, 34920, 35147, 34596, 34626, 35284, 35113, 35218, 35316, 34265, 34480, 34411, 34797, 35280, 34834, 33778, 34537, 34163, 35111, 34557, 38165, 39951, 39563, 40502, 40472, 40338, 39658, 39387, 39511, 40264, 39800, 39221, 39631, 37523, 34859, 34485, 34599, 34901, 34254, 35267, 34748, 34337, 34644, 34456, 34872, 34822, 37002, 38876, 40108, 40386, 39947, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 39786, 39965, 40310, 39959, 40172, 39777, 40072, 40409, 40629, 40211, 39839, 39672], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 39384, 39550, 39889, 39529, 39756, 39370, 39662, 39995, 40219, 39806, 39450, 39259], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 40209, 40393, 40702, 40399, 40615, 40177, 40492, 40837, 41027, 40632, 40249, 40079]}, {"category": "bakery", "colour": "#BA7517", "hist": [2243, 11481, 12091, 11887, 11249, 10504, 9913, 10469, 9834, 10241, 10054, 9897, 9940, 9915, 10617, 10281, 9956, 9480, 11560, 10910, 11513, 11619, 12878, 12734, 13598, 13582, 13206, 14685, 14787, 14916, 14519, 12877, 13464, 13671, 13434, 12097, 11649, 11298, 11601, 11669, 10082, 10569, 9813, 10492, 9641, 9929, 9572, 10555, 12513, 14695, 14808, 15408, 14840, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 15404, 16213, 16603, 15940, 14901, 14524, 14418, 14755, 14500, 14370, 14085, 14500], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 15004, 15831, 16213, 15539, 14504, 14133, 14030, 14365, 14140, 13966, 13681, 14115], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 15793, 16592, 17003, 16324, 15284, 14913, 14828, 15153, 14914, 14783, 14473, 14891]}, {"category": "meat_seafood", "colour": "#D85A30", "hist": [9426, 51935, 52124, 52619, 51764, 44207, 41371, 41917, 41652, 41162, 41708, 41638, 40951, 41300, 41812, 41719, 41867, 41416, 41486, 41455, 42064, 41490, 42186, 41622, 41664, 41780, 41514, 41548, 41137, 41973, 41559, 41917, 41061, 41516, 41327, 41493, 41369, 41723, 41844, 41932, 41672, 41613, 42399, 41535, 45545, 46916, 47083, 46583, 52285, 57203, 57349, 57027, 57488, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 53900, 55018, 56735, 54090, 50433, 46213, 43987, 43903, 45458, 45274, 44177, 44372], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 53169, 54281, 56015, 53381, 49725, 45498, 43281, 43168, 44769, 44500, 43490, 43587], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 54636, 55752, 57463, 54843, 51147, 46935, 44719, 44618, 46165, 46019, 44902, 45063]}, {"category": "pantry", "colour": "#7F77DD", "hist": [4970, 26972, 27020, 26020, 26058, 26462, 25978, 26346, 26853, 26347, 26455, 26721, 26591, 26663, 26403, 26936, 27225, 26808, 27082, 27228, 27054, 26526, 26192, 26793, 26701, 26398, 26793, 26677, 27252, 26723, 26959, 27392, 26376, 26968, 26469, 27165, 25700, 26539, 26226, 26711, 30862, 30826, 30618, 30440, 30386, 30640, 30643, 30810, 31992, 34880, 34326, 35118, 35043, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 33315, 31626, 30934, 30501, 30569, 30783, 30979, 30765, 30815, 31441, 31076, 30850], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 32874, 31169, 30454, 30067, 30124, 30336, 30544, 30314, 30352, 30983, 30609, 30347], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 33790, 32087, 31423, 30971, 31019, 31217, 31423, 31202, 31288, 31935, 31519, 31300]}, {"category": "frozen", "colour": "#0F6E56", "hist": [3332, 17650, 17194, 17598, 17539, 17009, 17191, 17008, 16844, 17694, 17563, 17810, 17664, 17255, 17381, 17492, 17379, 17560, 20031, 20014, 20229, 20181, 21209, 22369, 23488, 22704, 23838, 25361, 26171, 25346, 25637, 24796, 25985, 25182, 26016, 22286, 19746, 20134, 20214, 20131, 17392, 17397, 17620, 17771, 17673, 17242, 17604, 17766, 18029, 17084, 18039, 17412, 17070, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 20787, 23922, 25534, 25863, 25070, 24419, 25113, 25335, 25204, 25010, 25819, 25679], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 20270, 23407, 25021, 25338, 24558, 23844, 24555, 24800, 24717, 24458, 25272, 25167], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 21308, 24466, 26036, 26429, 25594, 24951, 25645, 25858, 25759, 25506, 26335, 26187]}, {"category": "beverages", "colour": "#EF9F27", "hist": [7057, 36084, 36306, 35982, 35703, 33287, 32340, 32852, 31632, 30570, 29019, 28588, 28807, 27077, 24967, 24823, 25105, 25181, 25557, 25488, 25485, 25168, 23279, 21745, 21806, 21008, 21574, 21333, 21943, 21701, 22158, 24009, 25509, 24942, 24892, 25290, 25501, 25564, 24778, 25259, 28828, 29471, 28802, 28932, 31082, 32358, 32804, 32086, 34898, 35659, 35587, 36542, 36719, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 39895, 41152, 41091, 40010, 39225, 38032, 37311, 36317, 35720, 34854, 34096, 32866], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 39225, 40467, 40399, 39251, 38517, 37295, 36595, 35668, 35039, 34103, 33429, 32201], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 40563, 41811, 41765, 40736, 39918, 38661, 37995, 37030, 36379, 35566, 34816, 33552]}, {"category": "health_beauty", "colour": "#D4537E", "hist": [3301, 17778, 17780, 18030, 17992, 17840, 18091, 17597, 18053, 17734, 18039, 17817, 17896, 18027, 18055, 17930, 18351, 17868, 17683, 17642, 17884, 17799, 17935, 18191, 18231, 18001, 17759, 18162, 17539, 18092, 18110, 18173, 17468, 17804, 17978, 17908, 17444, 18206, 18131, 17785, 18125, 17634, 18101, 17516, 20046, 19967, 20427, 20152, 21232, 22393, 22964, 22645, 22552, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "forecast": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 19018, 17356, 17203, 17238, 17538, 17228, 17110, 17196, 17195, 17417, 17181, 17280], "lower": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 18759, 17080, 16940, 16968, 17276, 16954, 16822, 16909, 16914, 17156, 16908, 17003], "upper": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 19300, 17619, 17462, 17517, 17809, 17499, 17388, 17471, 17475, 17699, 17465, 17545]}]};
+const MAPE_DATA     = {"labels": ["dairy", "fresh_produce", "pantry", "bakery", "meat_seafood", "frozen", "health_beauty", "beverages"], "mape": [20.26, 52.45, 55.79, 71.96, 81.24, 108.57, 122.48, 127.31], "colours": ["#639922", "#378ADD", "#378ADD", "#EF9F27", "#EF9F27", "#E24B4A", "#E24B4A", "#E24B4A"]};
+const STOCKOUT_DATA = {"categories": ["fresh_produce", "dairy", "bakery", "meat_seafood", "pantry", "frozen", "beverages", "health_beauty"], "clusters": ["metro_large", "metro_small", "suburban", "regional", "rural", "convenience"], "matrix": [[8.9, 9.3, 8.3, 8.7, 7.9, 9.5], [7.6, 8.1, 8.4, 8.4, 7.7, 8.2], [9.1, 8.3, 8.3, 8.5, 8.3, 12.6], [9.4, 8.3, 9.0, 8.5, 7.3, 7.0], [8.7, 8.3, 8.0, 9.9, 7.9, 9.3], [8.4, 9.9, 7.9, 8.4, 8.1, 8.4], [8.2, 8.5, 9.1, 9.0, 9.4, 8.6], [6.6, 8.0, 8.5, 7.6, 9.4, 9.5]]};
+const REORDER_DATA  = {"labels": ["fresh_produce", "dairy", "bakery", "meat_seafood", "pantry", "frozen", "beverages", "health_beauty"], "datasets": [{"label": "Stockout", "colour": "#E24B4A", "data": [1550, 1291, 766, 1221, 1481, 988, 1164, 862]}, {"label": "Critical", "colour": "#D85A30", "data": [408, 306, 231, 320, 269, 280, 203, 271]}, {"label": "Low", "colour": "#EF9F27", "data": [0, 0, 0, 0, 0, 0, 0, 0]}]};
+const SEASONAL_DATA = {"labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], "datasets": [{"label": "fresh_produce", "colour": "#1D9E75", "data": [14, 14, 14, 14, 16, 16, 17, 17, 16, 14, 14, 16]}, {"label": "dairy", "colour": "#378ADD", "data": [15, 14, 14, 15, 14, 16, 16, 16, 15, 14, 14, 16]}, {"label": "bakery", "colour": "#BA7517", "data": [14, 13, 13, 13, 14, 15, 17, 15, 14, 13, 13, 17]}, {"label": "meat_seafood", "colour": "#D85A30", "data": [16, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 18]}, {"label": "pantry", "colour": "#7F77DD", "data": [14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 17]}, {"label": "frozen", "colour": "#0F6E56", "data": [14, 14, 14, 14, 15, 16, 18, 18, 15, 14, 14, 14]}, {"label": "beverages", "colour": "#EF9F27", "data": [18, 17, 16, 14, 14, 13, 13, 14, 14, 16, 17, 19]}, {"label": "health_beauty", "colour": "#D4537E", "data": [14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 15, 16]}]};
+
+const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const gridColor  = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+const tickColor  = isDark ? '#888780' : '#73726c';
+const labelColor = isDark ? '#e8e6de' : '#2c2c2a';
+
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+Chart.defaults.font.size   = 12;
+
+// ── Chart 1: Forecast per category ──────────────────────────────────────────
+
+let activeCat = FC_DATA.datasets[0].category;
+let forecastChart;
+
+function buildForecastDatasets(cat) {
+  const d = FC_DATA.datasets.find(x => x.category === cat);
+  if (!d) return [];
+  const col = d.colour;
+  const hex2rgba = (hex, a) => {
+    const r = parseInt(hex.slice(1,3),16);
+    const g = parseInt(hex.slice(3,5),16);
+    const b = parseInt(hex.slice(5,7),16);
+    return `rgba(${r},${g},${b},${a})`;
+  };
+  return [
+    {
+      label: 'Historical',
+      data:  d.hist,
+      borderColor: col,
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.3,
+    },
+    {
+      label: 'Forecast',
+      data:  d.forecast,
+      borderColor: col,
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderDash: [5,4],
+      pointRadius: 0,
+      tension: 0.3,
+    },
+    {
+      label: '80% CI upper',
+      data:  d.upper,
+      borderColor: 'transparent',
+      backgroundColor: hex2rgba(col, 0.12),
+      fill: '+1',
+      pointRadius: 0,
+      tension: 0.3,
+    },
+    {
+      label: '80% CI lower',
+      data:  d.lower,
+      borderColor: 'transparent',
+      backgroundColor: 'transparent',
+      fill: false,
+      pointRadius: 0,
+      tension: 0.3,
+    },
+  ];
+}
+
+function initForecastChart() {
+  const ctx = document.getElementById('forecastChart').getContext('2d');
+  const lastHistIdx = FC_DATA.labels.indexOf(FC_DATA.last_hist);
+
+  forecastChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: FC_DATA.labels,
+      datasets: buildForecastDatasets(activeCat),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => items[0].label,
+            label: (item) => {
+              if (item.datasetIndex > 1) return null;
+              const label = item.datasetIndex === 0 ? 'Actual' : 'Forecast';
+              const val = item.raw;
+              return val != null ? `${label}: ${Math.round(val).toLocaleString()} units` : null;
+            },
+          },
+        },
+        annotation: {
+          annotations: {
+            divider: {
+              type: 'line',
+              xMin: lastHistIdx,
+              xMax: lastHistIdx,
+              borderColor: gridColor,
+              borderWidth: 1.5,
+              borderDash: [4,3],
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: tickColor,
+            maxRotation: 30,
+            autoSkip: true,
+            maxTicksLimit: 12,
+          },
+          grid: { color: gridColor },
+        },
+        y: {
+          ticks: {
+            color: tickColor,
+            callback: (v) => v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
+          },
+          grid: { color: gridColor },
+          title: {
+            display: true,
+            text: 'Weekly units',
+            color: tickColor,
+            font: { size: 11 },
+          },
+        },
+      },
+    },
+  });
+}
+
+function buildCatTabs() {
+  const wrap = document.getElementById('cat-tabs');
+  FC_DATA.datasets.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-tab' + (d.category === activeCat ? ' active' : '');
+    btn.textContent = d.category.replace('_', ' ');
+    btn.style.borderColor = d.category === activeCat ? d.colour : '';
+    btn.style.color       = d.category === activeCat ? d.colour : '';
+    btn.onclick = () => {
+      activeCat = d.category;
+      wrap.querySelectorAll('.cat-tab').forEach((b,i) => {
+        b.classList.toggle('active', FC_DATA.datasets[i].category === activeCat);
+        b.style.borderColor = FC_DATA.datasets[i].category === activeCat ? FC_DATA.datasets[i].colour : '';
+        b.style.color       = FC_DATA.datasets[i].category === activeCat ? FC_DATA.datasets[i].colour : '';
+      });
+      forecastChart.data.datasets = buildForecastDatasets(activeCat);
+      forecastChart.update();
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+
+// ── Chart 2: MAPE horizontal bar ─────────────────────────────────────────────
+
+function initMapeChart() {
+  const ctx = document.getElementById('mapeChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: MAPE_DATA.labels.map(l => l.replace('_',' ')),
+      datasets: [{
+        data:            MAPE_DATA.mape,
+        backgroundColor: MAPE_DATA.colours,
+        borderRadius:    4,
+        borderSkipped:   false,
+      }],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => ` MAPE: ${item.raw.toFixed(1)}%`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: tickColor, callback: (v) => v+'%' },
+          grid:  { color: gridColor },
+          title: { display: true, text: 'MAPE (%)', color: tickColor, font: { size: 11 } },
+        },
+        y: {
+          ticks: { color: tickColor },
+          grid:  { display: false },
+        },
+      },
+    },
+  });
+}
+
+
+// ── Chart 3: Reorder urgency stacked bar ─────────────────────────────────────
+
+function initReorderChart() {
+  const ctx    = document.getElementById('reorderChart').getContext('2d');
+  const legend = document.getElementById('reorder-legend');
+  REORDER_DATA.datasets.forEach(d => {
+    legend.innerHTML += `<span class="legend-item">
+      <span class="swatch" style="background:${d.colour}"></span>${d.label}
+    </span>`;
+  });
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: REORDER_DATA.labels.map(l => l.replace('_',' ')),
+      datasets: REORDER_DATA.datasets.map(d => ({
+        label:           d.label,
+        data:            d.data,
+        backgroundColor: d.colour,
+        borderRadius:    d.label === 'Low' ? 4 : 0,
+        borderSkipped:   false,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => ` ${item.dataset.label}: ${item.raw.toLocaleString()}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          ticks: { color: tickColor, maxRotation: 30 },
+          grid:  { display: false },
+        },
+        y: {
+          stacked: true,
+          ticks: { color: tickColor },
+          grid:  { color: gridColor },
+          title: { display: true, text: 'Store/product combos', color: tickColor, font: { size: 11 } },
+        },
+      },
+    },
+  });
+}
+
+
+// ── Chart 4: Seasonal line chart ──────────────────────────────────────────────
+
+function initSeasonalChart() {
+  const ctx    = document.getElementById('seasonalChart').getContext('2d');
+  const legend = document.getElementById('seasonal-legend');
+  SEASONAL_DATA.datasets.forEach(d => {
+    legend.innerHTML += `<span class="legend-item">
+      <span class="swatch" style="background:${d.colour}"></span>${d.label.replace('_',' ')}
+    </span>`;
+  });
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: SEASONAL_DATA.labels,
+      datasets: SEASONAL_DATA.datasets.map(d => ({
+        label:           d.label.replace('_',' '),
+        data:            d.data,
+        borderColor:     d.colour,
+        backgroundColor: 'transparent',
+        borderWidth:     2,
+        pointRadius:     3,
+        pointHoverRadius:5,
+        tension:         0.4,
+      })),
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (item) => ` ${item.dataset.label}: ${Math.round(item.raw).toLocaleString()} units/day`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: tickColor, autoSkip: false },
+          grid:  { color: gridColor },
+        },
+        y: {
+          ticks: {
+            color: tickColor,
+            callback: (v) => v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
+          },
+          grid:  { color: gridColor },
+          title: { display: true, text: 'Avg daily units', color: tickColor, font: { size: 11 } },
+        },
+      },
+    },
+  });
+}
+
+
+// ── Init all ──────────────────────────────────────────────────────────────────
+buildCatTabs();
+initForecastChart();
+initMapeChart();
+initReorderChart();
+initSeasonalChart();
+</script>
+</body>
+</html>
