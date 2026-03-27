@@ -1,0 +1,67 @@
+version: 2
+
+models:
+
+  - name: fct_sales
+    description: >
+      Core demand fact table. All POS sales enriched with store
+      and product dimensions via cross-domain dbt Mesh refs.
+      SCD Type 2 join ensures historical prices are used for margin calc.
+      Grain: sale_key is unique.
+    columns:
+      - name: sale_key
+        tests:
+          - not_null
+          - unique
+      - name: store_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: sale_date
+        tests:
+          - not_null
+      - name: revenue
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.01
+              max_value: 50000
+      - name: gross_profit
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: store_cluster
+        tests:
+          - not_null
+
+  - name: fct_stockouts
+    description: >
+      Stockout and low-stock events correlated with estimated lost revenue.
+      Grain: store_id + product_id + stockout_date.
+      Use estimated_lost_revenue_7d for business impact reporting.
+      Use urgency to prioritise procurement action.
+    columns:
+      - name: store_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: stockout_date
+        tests:
+          - not_null
+      - name: urgency
+        tests:
+          - not_null
+          - accepted_values:
+              values: [critical, high, medium, low]
+      - name: estimated_lost_revenue_7d
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 100000

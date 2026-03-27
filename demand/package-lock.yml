@@ -3,12 +3,14 @@ packages:
     package: dbt-labs/dbt_utils
     version: 1.3.3
   - name: dbt_expectations
-    package: calogica/dbt_expectations
-    version: 0.10.4
+    package: metaplane/dbt_expectations
+    version: 0.10.10
   - name: elementary
     package: elementary-data/elementary
     version: 0.23.0
+  - local: ../supply
+    name: supply
   - name: dbt_date
-    package: calogica/dbt_date
-    version: 0.10.1
-sha1_hash: 72e1162dde5cc07bd463f22e153deb03978ff9dd
+    package: godatadriven/dbt_date
+    version: 0.17.1
+sha1_hash: 64342af804c8fdc2be95a69f6db12ebf659298e1

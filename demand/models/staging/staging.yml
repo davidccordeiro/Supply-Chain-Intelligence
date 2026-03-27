@@ -1,0 +1,45 @@
+
+version: 2
+
+models:
+
+  - name: stg_sales
+    description: >
+      Cleaned POS sales transactions. Deduplicated on sale_id.
+      Grain: sale_key is unique (sale_id + store_id + product_id + sale_date).
+      WARNING: use sale_key as primary key, not sale_id.
+    columns:
+      - name: sale_key
+        tests:
+          - not_null
+          - unique
+      - name: sale_id
+        tests:
+          - not_null
+      - name: store_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: sale_date
+        tests:
+          - not_null
+      - name: quantity
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 1000
+      - name: total_amount
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.01
+              max_value: 50000
+      - name: is_weekend
+        tests:
+          - not_null
+      - name: has_price_discrepancy
+        tests:
+          - not_null
