@@ -1,0 +1,149 @@
+# Tests and documentation for all staging models
+
+version: 2
+
+models:
+
+  - name: stg_stores
+    description: >
+      Cleaned store master data. One row per store.
+      Grain: store_id is unique.
+    columns:
+      - name: store_id
+        tests:
+          - not_null
+          - unique
+      - name: store_cluster
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - metro_large
+                - metro_small
+                - suburban
+                - regional
+                - rural
+                - convenience
+      - name: state
+        tests:
+          - not_null
+      - name: is_active
+        tests:
+          - not_null
+      - name: is_metro
+        tests:
+          - not_null
+
+  - name: stg_suppliers
+    description: >
+      Cleaned supplier master data. One row per supplier.
+      Grain: supplier_id is unique.
+    columns:
+      - name: supplier_id
+        tests:
+          - not_null
+          - unique
+      - name: lead_time_days
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 21
+      - name: is_reliable_supplier
+        tests:
+          - not_null
+
+  - name: stg_products
+    description: >
+      Product catalogue with full SCD Type 2 price history.
+      Grain: one row per product_id + dbt_valid_from (price version).
+      WARNING: filter to is_current_version = true for current prices only.
+    columns:
+      - name: product_version_key
+        tests:
+          - not_null
+          - unique
+      - name: product_id
+        tests:
+          - not_null
+      - name: unit_price
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.50
+              max_value: 100.00
+      - name: gross_margin_pct
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 100
+      - name: is_current_version
+        tests:
+          - not_null
+
+  - name: stg_inventory_snapshots
+    description: >
+      Weekly stock-on-hand per store per product.
+      Grain: store_id + product_id + snapshot_date is unique.
+    columns:
+      - name: inventory_snapshot_key
+        tests:
+          - not_null
+          - unique
+      - name: store_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: snapshot_date
+        tests:
+          - not_null
+      - name: quantity_on_hand
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 10000
+      - name: is_stockout
+        tests:
+          - not_null
+      - name: is_below_reorder_point
+        tests:
+          - not_null
+
+  - name: stg_purchase_orders
+    description: >
+      Cleaned purchase orders from ERP system.
+      Grain: po_id is unique.
+    columns:
+      - name: po_id
+        tests:
+          - not_null
+          - unique
+      - name: store_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: supplier_id
+        tests:
+          - not_null
+      - name: quantity_ordered
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 1000
+      - name: status
+        tests:
+          - accepted_values:
+              values: [delivered, in_transit, pending, cancelled]
+      - name: is_late
+        tests:
+          - not_null
+      - name: is_fulfilled
+        tests:
+          - not_null

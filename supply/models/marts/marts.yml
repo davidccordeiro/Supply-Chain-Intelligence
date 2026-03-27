@@ -1,0 +1,153 @@
+version: 2
+
+models:
+
+  - name: dim_stores
+    description: >
+      Store dimension. One row per store.
+      PUBLIC model — referenced by demand domain via dbt Mesh.
+      Grain: store_id is unique.
+    columns:
+      - name: store_id
+        tests:
+          - not_null
+          - unique
+      - name: store_cluster
+        tests:
+          - not_null
+      - name: cluster_tier
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 1
+              max_value: 6
+      - name: is_active
+        tests:
+          - not_null
+
+  - name: dim_products
+    description: >
+      Product dimension with SCD Type 2 price history.
+      PUBLIC model — referenced by demand domain via dbt Mesh.
+      Grain: product_version_key is unique (product_id + valid_from).
+      Filter is_current_version = true for current catalogue.
+    tests:
+      - elementary.volume_anomalies:
+          timestamp_column: valid_from
+          anomaly_sensitivity: 2
+    columns:
+      - name: product_version_key
+        tests:
+          - not_null
+          - unique
+      - name: product_id
+        tests:
+          - not_null
+      - name: unit_price
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0.50
+              max_value: 100.00
+      - name: is_current_version
+        tests:
+          - not_null
+      - name: perishability
+        tests:
+          - not_null
+          - accepted_values:
+              values: [Perishable, Non-Perishable]
+
+  - name: fct_inventory_snapshots
+    description: >
+      Weekly inventory snapshot fact table.
+      Grain: store_id + product_id + snapshot_date.
+      Key metric: days_of_stock_remaining for reorder decisions.
+      stock_status drives procurement alerts.
+    config:
+      elementary:
+        timestamp_column: snapshot_date
+    tests:
+      - elementary.volume_anomalies:
+          timestamp_column: snapshot_date
+          anomaly_sensitivity: 3
+    columns:
+      - name: inventory_snapshot_key
+        tests:
+          - not_null
+          - unique
+      - name: store_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: snapshot_date
+        tests:
+          - not_null
+      - name: stock_status
+        tests:
+          - not_null
+          - accepted_values:
+              values: [stockout, critical, low, healthy]
+          - elementary.column_anomalies:
+              column_anomalies:
+                - null_count
+              timestamp_column: snapshot_date
+      - name: days_of_stock_remaining
+        tests:
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 365
+      - name: quantity_on_hand
+        tests:
+          - elementary.column_anomalies:
+              column_anomalies:
+                - null_count
+                - zero_count
+                - average
+              timestamp_column: snapshot_date
+              anomaly_sensitivity: 3
+
+  - name: fct_purchase_orders
+    description: >
+      Purchase order fact table.
+      Grain: po_id is unique.
+      Use days_overdue and is_late for supplier performance reporting.
+    config:
+      elementary:
+        timestamp_column: order_date
+    tests:
+      - elementary.volume_anomalies:
+          timestamp_column: order_date
+          anomaly_sensitivity: 3
+    columns:
+      - name: po_id
+        tests:
+          - not_null
+          - unique
+      - name: store_id
+        tests:
+          - not_null
+      - name: product_id
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - accepted_values:
+              values: [delivered, in_transit, pending, cancelled]
+      - name: total_order_value
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 100000
+          - elementary.column_anomalies:
+              column_anomalies:
+                - average
+                - max
+              timestamp_column: order_date
+              anomaly_sensitivity: 3
+      - name: days_overdue
+        tests:
+          - not_null
