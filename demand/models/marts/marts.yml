@@ -8,6 +8,13 @@ models:
       and product dimensions via cross-domain dbt Mesh refs.
       SCD Type 2 join ensures historical prices are used for margin calc.
       Grain: sale_key is unique.
+    config:
+      elementary:
+        timestamp_column: sale_date
+    tests:
+      - elementary.volume_anomalies:
+          timestamp_column: sale_date
+          anomaly_sensitivity: 3
     columns:
       - name: sale_key
         tests:
@@ -28,6 +35,21 @@ models:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0.01
               max_value: 50000
+          - elementary.column_anomalies:
+              column_anomalies:
+                - average
+                - sum
+                - null_count
+              timestamp_column: sale_date
+              anomaly_sensitivity: 3
+      - name: quantity
+        tests:
+          - elementary.column_anomalies:
+              column_anomalies:
+                - average
+                - max
+              timestamp_column: sale_date
+              anomaly_sensitivity: 3
       - name: gross_profit
         tests:
           - not_null
@@ -44,6 +66,13 @@ models:
       Grain: store_id + product_id + stockout_date.
       Use estimated_lost_revenue_7d for business impact reporting.
       Use urgency to prioritise procurement action.
+    config:
+      elementary:
+        timestamp_column: stockout_date
+    tests:
+      - elementary.volume_anomalies:
+          timestamp_column: stockout_date
+          anomaly_sensitivity: 2
     columns:
       - name: store_id
         tests:
@@ -65,3 +94,9 @@ models:
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 0
               max_value: 100000
+          - elementary.column_anomalies:
+              column_anomalies:
+                - average
+                - sum
+              timestamp_column: stockout_date
+              anomaly_sensitivity: 2
