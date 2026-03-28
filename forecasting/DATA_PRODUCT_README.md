@@ -1,10 +1,4 @@
 # Data Product: Weekly Demand Forecast
-**Owner:** Demand Analytics Team  
-**Last Updated:** 2024-01-01  
-**Status:** Production  
-**Refresh Cadence:** Weekly (every Monday 06:00 AEST)
-
----
 
 ## What is this data product?
 
@@ -122,14 +116,14 @@ weekly seasonality pattern.
 
 | Category | MAPE | Grade | Notes |
 |---|---|---|---|
-| dairy | 20.26% | ✅ Excellent | High volume, stable demand pattern |
-| fresh_produce | 52.45% | ⚠️ Acceptable | Seasonal volatility expected |
-| pantry | 55.79% | ⚠️ Acceptable | Promotional sensitivity |
-| bakery | 71.96% | ⚠️ Poor | Low volume amplifies % error |
-| meat_seafood | 81.24% | ⚠️ Poor | High price variance affects units |
-| frozen | 108.57% | ❌ Unreliable | High week-to-week noise |
-| health_beauty | 122.48% | ❌ Unreliable | Irregular purchase patterns |
-| beverages | 127.31% | ❌ Unreliable | Promotional spikes not modelled |
+| dairy | 20.26% | Excellent | High volume, stable demand pattern |
+| fresh_produce | 52.45% | Acceptable | Seasonal volatility expected |
+| pantry | 55.79% | Acceptable | Promotional sensitivity |
+| bakery | 71.96% | Poor | Low volume amplifies % error |
+| meat_seafood | 81.24% | Poor | High price variance affects units |
+| frozen | 108.57% | Unreliable | High week-to-week noise |
+| health_beauty | 122.48% | Unreliable | Irregular purchase patterns |
+| beverages | 127.31% | Unreliable | Promotional spikes not modelled |
 
 ### Why are some MAPEs so high?
 
@@ -231,11 +225,11 @@ buffer of one extra week's supply for perishable categories.
 
 ## What this model does NOT do
 
-- ❌ Does not forecast at individual store level (use cluster × category)
-- ❌ Does not account for competitor pricing or promotions
-- ❌ Does not model weather effects
-- ❌ Does not forecast new products with no sales history
-- ❌ Does not replace the judgement of experienced category managers
+- Does not forecast at individual store level (use cluster × category)
+- Does not account for competitor pricing or promotions
+- Does not model weather effects
+- Does not forecast new products with no sales history
+- Does not replace the judgement of experienced category managers
   for high-stakes decisions
 
 ---
